@@ -1,0 +1,6 @@
+{
+  "name": "Cyber Runner 2D",
+  "description": "An action-packed 2D side-scrolling platformer and parkour adventure. Infiltrate secure network sectors using double jumps, wall runs, crouch-slides, air-dashes, and magnet boots.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
