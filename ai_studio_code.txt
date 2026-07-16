@@ -1,0 +1,133 @@
+[Header("Wall Running")]
+public float wallRunSpeed = 10f;
+public float wallRunGravity = -5f; // Lower gravity while wall running
+public float wallCheckDistance = 1.2f;
+public LayerMask wallLayer;
+
+[Header("Camera")]
+public Transform playerCamera;
+public float lookSpeed = 2f;
+public float lookXLimit = 85f;
+
+private CharacterController controller;
+private Vector3 velocity;
+private bool isGrounded;
+private float rotationX = 0;
+
+// Coyote Time
+private float coyoteTime = 0.15f;
+private float coyoteCounter;
+
+// Wall run state
+private bool isWallRunning = false;
+private Vector3 wallNormal;
+
+void Start()
+{
+    controller = GetComponent<CharacterController>();
+    
+    // Lock cursor for a clean FPS feel
+    Cursor.lockState = CursorLockMode.Locked;
+    Cursor.visible = false;
+}
+
+void Update()
+{
+    HandleLook();
+    HandleMovement();
+    HandleWallRun();
+}
+
+void HandleLook()
+{
+    // Player and Camera rotation
+    rotationX += -Input.GetAxis("Mouse Y") * lookSpeed;
+    rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
+    playerCamera.localRotation = Quaternion.Euler(rotationX, 0, 0);
+    transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
+}
+
+void HandleMovement()
+{
+    isGrounded = controller.isGrounded;
+
+    // Coyote Time logic (allows jumping slightly after leaving a platform)
+    if (isGrounded)
+    {
+        coyoteCounter = coyoteTime;
+        if (velocity.y < 0) velocity.y = -2f; // Keep player snapped to ground
+    }
+    else
+    {
+        coyoteCounter -= Time.deltaTime;
+    }
+
+    // Standard movement inputs
+    float moveX = Input.GetAxis("Horizontal");
+    float moveZ = Input.GetAxis("Vertical");
+    Vector3 move = transform.right * moveX + transform.forward * moveZ;
+
+    // Apply movement
+    float currentSpeed = isWallRunning ? wallRunSpeed : moveSpeed;
+    controller.Move(move * currentSpeed * Time.deltaTime);
+
+    // Jump Logic
+    if (Input.GetButtonDown("Jump") && (coyoteCounter > 0 || isWallRunning))
+    {
+        if (isWallRunning)
+        {
+            // Push away from the wall during a wall jump
+            velocity = (wallNormal * 5f) + (Vector3.up * Mathf.Sqrt(jumpHeight * -2f * gravity));
+            isWallRunning = false;
+        }
+        else
+        {
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            coyoteCounter = 0f;
+        }
+    }
+
+    // Apply gravity
+    float currentGravity = isWallRunning ? wallRunGravity : gravity;
+    velocity.y += currentGravity * Time.deltaTime;
+    controller.Move(velocity * Time.deltaTime);
+}
+
+void HandleWallRun()
+{
+    // Only wall run if in the air and moving forward
+    if (!isGrounded && Input.GetAxis("Vertical") > 0)
+    {
+        RaycastHit hit;
+        // Check Right side
+        if (Physics.Raycast(transform.position, transform.right, out hit, wallCheckDistance, wallLayer))
+        {
+            StartWallRun(hit.normal);
+        }
+        // Check Left side
+        else if (Physics.Raycast(transform.position, -transform.right, out hit, wallCheckDistance, wallLayer))
+        {
+            StartWallRun(hit.normal);
+        }
+        else
+        {
+            isWallRunning = false;
+        }
+    }
+    else
+    {
+        isWallRunning = false;
+    }
+}
+
+void StartWallRun(Vector3 normal)
+{
+    isWallRunning = true;
+    wallNormal = normal;
+
+    // Slow down downward fall while wall running
+    if (velocity.y < 0)
+    {
+        velocity.y = -1.5f; 
+    }
+}
